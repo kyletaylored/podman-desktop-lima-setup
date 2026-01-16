@@ -1,0 +1,6 @@
+# GitHub Pages Configuration
+theme: jekyll-theme-minimal
+title: Podman Desktop + Lima Setup
+description: One-command setup for Podman Desktop with a fully mutable Fedora VM
+show_downloads: true
+google_analytics: # Add your GA tracking ID if desired

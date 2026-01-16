@@ -1,0 +1,35 @@
+{
+    "telemetry.enabled": false,
+    "releaseNotesBanner.show": "1.24.2",
+    "welcome.version": "initial",
+    "compose.binary.installComposeSystemWide": true,
+    "kubectl.binary.installKubectlSystemWide": true,
+    "window.bounds": {
+        "x": 0,
+        "y": 38,
+        "width": 1512,
+        "height": 944
+    },
+    "telemetry.check": true,
+    "preferences.zoomLevel": 0.8,
+    "dockerCompatibility.enabled": true,
+    "tasks.StatusBar": {
+        "remindAt": 1756397108182,
+        "disabled": false
+    },
+    "statusbarProviders.showProviders": {
+        "remindAt": 1756397108183,
+        "disabled": false
+    },
+    "podman.setting.dockerCompatibility": true,
+    "docker.cli.context": "colima",
+    "extensions.disabled": [],
+    "exploreFeatures.expanded": false,
+    "podman.setting.rosetta": false,
+    "podman.system.connections.remote": true,
+    "lima.type": "docker",
+    "lima.home": "~/.lima",
+    "lima.binary.path": "/opt/homebrew/bin/limactl",
+    "lima.name": "podman",
+    "lima.socket": "podman"
+}

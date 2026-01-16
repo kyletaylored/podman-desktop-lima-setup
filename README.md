@@ -1,240 +1,394 @@
-# Podman Desktop with Lima (Mutable VM)
+# Podman Desktop + Lima Setup
 
-## Overview
+> **One-command setup for Podman Desktop with a fully mutable Fedora VM**
 
-Podman Desktop’s default setup provisions a **Fedora CoreOS** virtual machine, which is **immutable/read-only by design**. This prevents installing VM-level packages (`dnf`, system tools, debuggers, etc.) and makes system customization difficult.
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-This guide uses **Lima (`limactl`) with the official Podman template**, which provisions a **mutable Fedora Cloud VM** that:
+## Why This Setup?
 
-* Is **natively supported by Podman Desktop**
-* Runs **Podman as the container engine**
-* Exposes a **host-accessible Podman socket**
-* Allows **VM-level package installation**
-* Supports **docker / docker-compose** via a compatible API
+Podman Desktop's default VM uses **Fedora CoreOS**, which is **immutable by design**. This prevents installing packages, debugging tools, or customizing the system environment.
 
-This is the **cleanest and officially supported** way to use Podman Desktop with a writable VM.
+This setup uses **Lima with the official Podman template** to provision a **mutable Fedora Cloud VM** that gives you:
+
+✅ **Full system access** - Install any packages with `dnf`
+✅ **Podman Desktop native support** - Auto-detected, no hacks
+✅ **Docker CLI compatibility** - Works with `docker` and `docker-compose`
+✅ **Persistent customization** - System changes survive reboots
+✅ **Development tools** - `vim`, `tcpdump`, `strace`, debuggers, etc.
+
+---
+
+## Quick Installation
+
+### One-Line Install (Recommended)
+
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/YOUR-USERNAME/podman-desktop-lima-setup/main/setup-podman-lima.sh)
+```
+
+The interactive wizard will guide you through:
+- Choosing rootless (recommended) or rootful Podman
+- Configuring VM resources (CPU, memory, disk)
+- Enabling Docker CLI compatibility
+- Installing development tools in the VM
+
+### Quick Setup (No Prompts)
+
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/YOUR-USERNAME/podman-desktop-lima-setup/main/setup-podman-lima.sh) --quick
+```
+
+Uses sensible defaults: rootless mode, 4 CPU, 8GB RAM, 100GB disk.
 
 ---
 
-## Architecture
+## What You Get
+
+### Architecture
 
 ```
-macOS
- ├── Podman Desktop (GUI)
- ├── podman CLI (remote)
- ├── docker / docker-compose (optional)
- └── Lima VM (Fedora Cloud, mutable)
-      └── Podman engine
+macOS Host
+ ├── Podman Desktop (GUI) ──────┐
+ ├── podman CLI (remote) ───────┼──> Lima VM (Fedora Cloud, mutable)
+ └── docker CLI (optional) ─────┘     └── Podman engine (rootless/rootful)
 ```
 
----
+### System Details
+
+- **VM OS**: Fedora Cloud (mutable, systemd-enabled)
+- **Container Engine**: Podman (rootless by default)
+- **Socket**: `unix://~/.lima/podman/sock/podman.sock`
+- **Package Manager**: `dnf` (full access)
+- **Default Resources**: 4 CPU / 8GB RAM / 100GB disk
 
 ## Prerequisites
 
-```bash
-brew install lima podman
-```
+The setup script will check and install these automatically via Homebrew:
 
-(Optional, if you use Docker tooling)
+- **Homebrew** (required) - [Install here](https://brew.sh)
+- **Lima** (`limactl`) - Installed via script
+- **Podman** CLI - Installed via script
+
+### Optional Tools
 
 ```bash
+# For Docker CLI compatibility
 brew install docker docker-compose
 ```
 
 ---
 
-## Quick Start (Recommended)
+## Usage
 
-Run the **interactive setup wizard**:
+### Interactive Wizard Mode
 
 ```bash
 ./setup-podman-lima.sh
 ```
 
-The wizard will:
+Walks you through all configuration options with helpful prompts.
 
-* Ask whether you want **rootless** or **rootful** Podman
-* Create a Lima VM (4 CPU / 8 GB RAM / 100 GB disk)
-* Configure the **Podman system connection**
-* Optionally export and persist `DOCKER_HOST`
-* Optionally install VM-level packages
-* Leave you with a ready-to-use Podman Desktop engine
+### Quick Mode (Defaults)
+
+```bash
+./setup-podman-lima.sh --quick
+```
+
+### Custom Configuration
+
+```bash
+./setup-podman-lima.sh \
+  --mode rootful \
+  --cpus 8 \
+  --memory 16 \
+  --disk 200 \
+  --persist-docker-host \
+  --install-packages
+```
+
+### Available Options
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--quick` | Quick setup with defaults | - |
+| `--vm-name NAME` | Lima VM name | `podman` |
+| `--cpus N` | CPU cores | `4` |
+| `--memory GB` | Memory in GB | `8` |
+| `--disk GB` | Disk size in GB | `100` |
+| `--mode MODE` | `rootless` or `rootful` | `rootless` |
+| `--persist-docker-host` | Add DOCKER_HOST to shell profile | disabled |
+| `--install-packages` | Install dev tools in VM | disabled |
+| `--packages "a b c"` | Custom package list | vim jq iproute strace tcpdump |
+| `-y, --yes` | Skip confirmations | - |
+| `-h, --help` | Show help | - |
 
 ---
 
-## Manual Setup (Step-by-Step)
+## Working with the VM
 
-### 1. Create the Lima Podman VM
-
-#### Rootless Podman (recommended)
+### Enter the VM
 
 ```bash
-limactl start \
-  --name=podman \
-  --cpus=4 \
-  --memory=8 \
-  --disk=100 \
-  template://podman
+limactl shell podman
 ```
 
-#### Rootful Podman (only if required)
+Opens an interactive shell inside the Fedora VM.
+
+### VM Environment
+
+Once inside:
+- **User**: `lima`
+- **OS**: Fedora Cloud
+- **Package manager**: `dnf`
+- **Systemd**: enabled
+- **Filesystem**: writable & persistent
+
+### Install Packages
 
 ```bash
-limactl start \
-  --name=podman \
-  --cpus=4 \
-  --memory=8 \
-  --disk=100 \
-  template://podman-rootful
+# Inside the VM
+sudo dnf install -y vim htop tcpdump strace
 ```
 
-This downloads a **Fedora Cloud** image (mutable, systemd-enabled).
+Or from the host:
+
+```bash
+limactl shell podman -- sudo dnf install -y vim htop
+```
+
+Packages persist across reboots.
+
+### VM Lifecycle
+
+```bash
+limactl stop podman      # Stop the VM
+limactl start podman     # Start the VM
+limactl list             # List all VMs
+limactl delete podman    # Delete the VM
+```
 
 ---
 
-### 2. Configure the Podman CLI (host → VM)
+## Docker CLI Compatibility
 
-The Podman template prints the exact commands needed. For reference:
+Podman exposes a Docker-compatible API socket that `docker` and `docker-compose` can use.
 
-```bash
-podman system connection add lima-podman \
-  "unix://${HOME}/.lima/podman/sock/podman.sock"
+### Enable Docker Compatibility
 
-podman system connection default lima-podman
-```
-
-Verify:
-
-```bash
-podman info
-podman run quay.io/podman/hello
-```
-
-Podman Desktop will automatically detect this engine.
-
----
-
-### 3. Configure Docker / docker-compose (optional)
-
-Podman exposes a **Docker-compatible API** via the same socket.
+The script can automatically add this to your shell profile with `--persist-docker-host`, or set it manually:
 
 ```bash
 export DOCKER_HOST="unix://${HOME}/.lima/podman/sock/podman.sock"
 ```
 
-Test:
+### Test Docker CLI
 
 ```bash
 docker ps
+docker run hello-world
 docker compose version
-docker compose build
 ```
 
-Persist this in your shell profile if desired.
+### Persist in Shell Profile
 
----
-
-## Entering the VM (SSH / shell)
-
-To enter the VM:
+Add to `~/.zshrc`, `~/.bashrc`, or `~/.profile`:
 
 ```bash
-limactl shell podman
-```
-
-This opens an interactive shell inside the VM.
-
-**Inside the VM:**
-
-* User: `lima`
-* OS: Fedora Cloud
-* Package manager: `dnf`
-* systemd: enabled
-* Filesystem: writable & persistent
-
----
-
-## Installing VM-Level Packages
-
-Example:
-
-```bash
-sudo dnf install -y \
-  vim \
-  tcpdump \
-  strace \
-  iproute \
-  jq
-```
-
-Packages persist across reboots.
-
-You can also run commands non-interactively:
-
-```bash
-limactl shell podman -- sudo dnf install -y htop
+export DOCKER_HOST="unix://${HOME}/.lima/podman/sock/podman.sock"
 ```
 
 ---
 
-## VM Lifecycle Management
+## Podman Desktop Integration
+
+The setup script **automatically configures** Podman Desktop to use your Lima VM!
+
+### What Gets Configured
+
+The script updates Podman Desktop settings:
+- Lima VM name and type
+- Socket location
+- Docker compatibility mode
+
+### How to Use
+
+1. **Run the setup script** (it configures Podman Desktop by default)
+2. **Restart Podman Desktop** app
+3. The Lima VM appears in the dashboard
+4. Use the GUI to manage containers, images, volumes, etc.
+
+### Skip Podman Desktop Configuration
+
+If you don't use Podman Desktop or want to configure it manually:
 
 ```bash
-limactl stop podman
-limactl start podman
+./setup-podman-lima.sh --skip-podman-desktop
+```
+
+Podman Desktop may still auto-detect the VM through the Lima extension.
+
+### Manual Configuration
+
+See [PODMAN_DESKTOP_INTEGRATION.md](docs/PODMAN_DESKTOP_INTEGRATION.md) for details on:
+- How CLI and GUI connections work together
+- Manual Podman Desktop configuration
+- Troubleshooting connection issues
+- Settings file format and location
+
+---
+
+## Rootless vs Rootful Mode
+
+| Mode | Use Case | Security | Compatibility |
+|------|----------|----------|---------------|
+| **Rootless** | Development, most use cases | Higher (non-root) | Good |
+| **Rootful** | Kubernetes tools, privileged containers | Lower (root access) | Better |
+
+Choose **rootless** unless you specifically need rootful capabilities.
+
+---
+
+## Troubleshooting
+
+### VM won't start
+
+```bash
+# Check Lima VM status
+limactl list
+
+# View VM logs
+limactl shell podman -- journalctl -xe
+```
+
+### Podman socket not found
+
+```bash
+# Verify socket exists
+ls -la ~/.lima/podman/sock/podman.sock
+
+# Restart VM
+limactl stop podman && limactl start podman
+```
+
+### Podman Desktop not detecting VM
+
+```bash
+# Check connection
+podman system connection list
+
+# Set default connection
+podman system connection default lima-podman
+
+# Restart Podman Desktop
+```
+
+### Clean reinstall
+
+```bash
+# Delete VM completely
 limactl delete podman
+
+# Run setup again
+./setup-podman-lima.sh
 ```
 
 ---
 
-## Filesystem Layout (Reference)
+## Advanced Configuration
 
-```text
-~/.lima/podman/
-├── lima.yaml
-├── basedisk
-├── diffdisk
-└── sock/
-    └── podman.sock   ← used by podman and docker
-```
-
----
-
-## Rootless vs Rootful Podman
-
-| Mode                                  | When to use                                             |
-| ------------------------------------- | ------------------------------------------------------- |
-| Rootless (`template://podman`)        | Default, safest, best for dev                           |
-| Rootful (`template://podman-rootful`) | Needed for some Kubernetes tools, privileged containers |
-
-Both run on the same mutable Fedora Cloud VM.
-
----
-
-## Why This Approach
-
-| Requirement                   | Result         |
-| ----------------------------- | -------------- |
-| Mutable VM                    | ✅ Fedora Cloud |
-| Podman Desktop native support | ✅              |
-| podman CLI on host            | ✅              |
-| docker / docker-compose       | ✅              |
-| VM-level package installs     | ✅              |
-| No CoreOS immutability        | ✅              |
-
-This setup avoids:
-
-* Fedora CoreOS limitations
-* Podman Machine quirks
-* Colima/Docker compatibility hacks
-
----
-
-## TL;DR
+### Custom VM Resources
 
 ```bash
-limactl start template://podman
-podman system connection add lima-podman unix://~/.lima/podman/sock/podman.sock
-export DOCKER_HOST=unix://~/.lima/podman/sock/podman.sock
-limactl shell podman
+./setup-podman-lima.sh --cpus 8 --memory 16 --disk 200
 ```
+
+### Multiple VMs
+
+```bash
+# Create additional VMs with different names
+./setup-podman-lima.sh --vm-name podman-dev --mode rootless
+./setup-podman-lima.sh --vm-name podman-k8s --mode rootful
+```
+
+### VM Configuration File
+
+After creation, edit VM settings:
+
+```bash
+limactl edit podman
+```
+
+Restart VM for changes to take effect:
+
+```bash
+limactl stop podman && limactl start podman
+```
+
+---
+
+## Why This Approach?
+
+### Comparison with Alternatives
+
+| Feature | Lima + Podman | Podman Machine | Docker Desktop | Colima |
+|---------|---------------|----------------|----------------|--------|
+| Mutable VM | ✅ | ❌ (CoreOS) | ❌ (Alpine) | ✅ |
+| Native Podman Desktop | ✅ | ✅ | ❌ | ❌ |
+| Docker CLI compat | ✅ | ✅ | ✅ | ✅ |
+| Free for commercial | ✅ | ✅ | ❌ | ✅ |
+| Package installation | ✅ | ❌ | ❌ | ✅ |
+| Official Podman | ✅ | ✅ | ❌ | ❌ |
+
+### Benefits
+
+✅ Uses **official Lima Podman templates** (maintained by Lima team)
+✅ **Zero configuration hacks** or workarounds
+✅ **Full Fedora Cloud** with complete package access
+✅ **Seamless Podman Desktop** integration
+✅ **Docker CLI compatibility** without Docker Desktop licensing
+✅ **Persistent customization** survives reboots
+
+---
+
+## Manual Setup (Without Script)
+
+If you prefer manual setup:
+
+```bash
+# Install prerequisites
+brew install lima podman
+
+# Start Lima VM with Podman template
+limactl start --name=podman --cpus=4 --memory=8 --disk=100 template://podman
+
+# Configure Podman connection
+podman system connection add lima-podman "unix://${HOME}/.lima/podman/sock/podman.sock"
+podman system connection default lima-podman
+
+# Test connection
+podman info
+
+# Optional: Docker compatibility
+export DOCKER_HOST="unix://${HOME}/.lima/podman/sock/podman.sock"
+```
+
+---
+
+## Contributing
+
+Contributions welcome! Please open an issue or pull request.
+
+---
+
+## License
+
+MIT License - See [LICENSE](LICENSE) file for details
+
+---
+
+## Resources
+
+- [Lima Project](https://lima-vm.io/)
+- [Podman Desktop](https://podman-desktop.io/)
+- [Podman Documentation](https://docs.podman.io/)
+- [Lima Podman Template](https://github.com/lima-vm/lima/blob/master/examples/podman.yaml)
