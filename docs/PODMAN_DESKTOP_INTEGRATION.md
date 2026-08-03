@@ -35,12 +35,22 @@ podman system connection default lima-podman
 {
   "lima.type": "podman",
   "lima.name": "podman",
-  "lima.socket": "podman",
-  "lima.home": "~/.lima",
+  "lima.socket": "podman.sock",
+  "lima.home": "/Users/you/.lima",
   "dockerCompatibility.enabled": true,
   "podman.setting.dockerCompatibility": true
 }
 ```
+
+> **Always set all four values explicitly, exactly as above.** Podman
+> Desktop's Lima extension declares `lima.name`/`lima.socket`/`lima.home`
+> with an empty-string default in its own schema, so leaving any of them out
+> of `settings.json` does **not** trigger a sensible fallback — the
+> extension reads `""` for it. Combined with `lima.socket` and `lima.home`
+> being used as a literal file path (via Node's `path.resolve()`, which does
+> not expand `~`), an empty or `~`-prefixed value collapses the computed
+> socket path to something like `/sock`, and the Lima provider silently
+> fails to register. See "Common Issues" below.
 
 **Purpose:**
 - Tells Podman Desktop which Lima VM to use
@@ -113,10 +123,10 @@ This is for the GUI only:
 **Key settings:**
 ```json
 {
-  "lima.type": "podman",          // Type of engine (podman or docker)
-  "lima.name": "podman",          // Lima VM name
-  "lima.socket": "podman",        // Socket name (without .sock)
-  "lima.home": "~/.lima",         // Lima home directory
+  "lima.type": "podman",              // Type of engine (podman or docker)
+  "lima.name": "podman",              // Lima VM name
+  "lima.socket": "podman.sock",       // Socket filename, WITH .sock
+  "lima.home": "/Users/you/.lima",    // Lima home dir, absolute path (no ~)
   "dockerCompatibility.enabled": true  // Enable Docker socket compat
 }
 ```
@@ -176,14 +186,16 @@ Your current `settings.json` has:
 }
 ```
 
-**Issue:** Inconsistent configuration!
+**Issue:** Inconsistent configuration! (And separately, `lima.socket` here is
+also missing the `.sock` suffix, which breaks detection on its own even once
+`type`/`name` are made consistent.)
 
 **Should be:**
 ```json
 {
-  "lima.type": "podman",      // ✅ Type matches socket
-  "lima.name": "podman",      // ✅ Name is podman
-  "lima.socket": "podman"     // ✅ Socket is podman
+  "lima.type": "podman",           // ✅ Type matches socket
+  "lima.name": "podman",           // ✅ Name is podman
+  "lima.socket": "podman.sock"     // ✅ Socket is podman.sock, not podman
 }
 ```
 
@@ -257,6 +269,27 @@ ls -la ~/.lima/podman/sock/podman.sock
 # Then restart Podman Desktop
 ```
 
+### Podman Desktop logs "Could not find socket at /sock"
+
+**Cause:** `lima.socket` or `lima.home` is missing, empty, or wrong (e.g.
+`lima.socket` without the `.sock` suffix, or `lima.home` set to `~/.lima`
+instead of an absolute path). The Lima extension's schema declares these
+settings with an empty-string default, so an unset value reads as `""`
+rather than falling back to something sensible — and `""` combined with
+`lima.home`, when resolved as a path, collapses to a bare `/sock`.
+
+You can see this failure directly in Podman Desktop's own launch output
+(run the app from a terminal, or check its logs) — look for a line like:
+
+```
+[lima] Could not find socket at /sock
+```
+
+**Fix:** Set all four `lima.*` values explicitly and correctly in
+`settings.json` (see "Podman Desktop GUI Connection" above), then fully quit
+and relaunch Podman Desktop — the extension only checks for the socket once,
+at startup, and does not retry.
+
 ### CLI works but Podman Desktop doesn't
 
 **Cause:** Two different configurations
@@ -289,14 +322,14 @@ source ~/.zshrc
 {
   "lima.type": "podman",
   "lima.name": "podman",
-  "lima.socket": "podman"
+  "lima.socket": "podman.sock"
 }
 
 // If using Docker VM:
 {
   "lima.type": "docker",
   "lima.name": "docker",
-  "lima.socket": "docker"
+  "lima.socket": "docker.sock"
 }
 ```
 
@@ -367,12 +400,15 @@ Edit `~/.local/share/containers/podman-desktop/configuration/settings.json`:
 {
   "lima.name": "podman",
   "lima.type": "podman",
-  "lima.socket": "podman",
-  "lima.home": "~/.lima"
+  "lima.socket": "podman.sock",
+  "lima.home": "/Users/you/.lima"
 }
 ```
 
-Then restart Podman Desktop.
+Then restart Podman Desktop. All four values above must be set explicitly
+and exactly as shown — `lima.socket` needs the `.sock` suffix, and
+`lima.home` must be an absolute path, not `~/.lima` (see the callout under
+"Podman Desktop GUI Connection" above for why).
 
 ### Configure Docker CLI
 

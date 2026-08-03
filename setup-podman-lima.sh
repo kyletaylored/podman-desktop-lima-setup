@@ -291,8 +291,17 @@ configure_podman_desktop() {
   # Backup existing settings
   cp "$settings_file" "${settings_file}.backup.$(date +%s)" 2>/dev/null || true
 
-  # Determine socket name based on type
-  local socket_name="${lima_type}"
+  # Determine socket name based on type. Podman Desktop's Lima extension
+  # uses this value as the literal socket filename (it only appends ".sock"
+  # itself as a fallback when the setting is entirely unset) - the real
+  # socket on disk is always named "<type>.sock", so this must match.
+  local socket_name="${lima_type}.sock"
+
+  # Absolute path to the Lima home directory. Podman Desktop's extension
+  # resolves this with Node's path.resolve(), which does NOT expand a
+  # leading "~" the way a shell would - a literal "~/.lima" gets treated as
+  # a relative path against the extension host's cwd, not $HOME.
+  local lima_home="${HOME}/.lima"
 
   # Use jq if available, otherwise use basic sed
   if command -v jq &>/dev/null; then
@@ -301,10 +310,11 @@ configure_podman_desktop() {
     jq --arg vm_name "$vm_name" \
        --arg lima_type "$lima_type" \
        --arg socket_name "$socket_name" \
+       --arg lima_home "$lima_home" \
        '.["lima.name"] = $vm_name |
         .["lima.type"] = $lima_type |
         .["lima.socket"] = $socket_name |
-        .["lima.home"] = "~/.lima" |
+        .["lima.home"] = $lima_home |
         .["dockerCompatibility.enabled"] = true |
         .["podman.setting.dockerCompatibility"] = true' \
        "$settings_file" > "$temp_file" && mv "$temp_file" "$settings_file"
@@ -320,6 +330,7 @@ configure_podman_desktop() {
       sed -i.bak "s/\"lima.name\": *\"[^\"]*\"/\"lima.name\": \"${vm_name}\"/" "$settings_file"
       sed -i.bak "s/\"lima.type\": *\"[^\"]*\"/\"lima.type\": \"${lima_type}\"/" "$settings_file"
       sed -i.bak "s/\"lima.socket\": *\"[^\"]*\"/\"lima.socket\": \"${socket_name}\"/" "$settings_file"
+      sed -i.bak "s#\"lima.home\": *\"[^\"]*\"#\"lima.home\": \"${lima_home}\"#" "$settings_file"
     else
       # Add new settings before the last }
       sed -i.bak '$ d' "$settings_file"  # Remove last }
@@ -327,7 +338,7 @@ configure_podman_desktop() {
     "lima.name": "${vm_name}",
     "lima.type": "${lima_type}",
     "lima.socket": "${socket_name}",
-    "lima.home": "~/.lima",
+    "lima.home": "${lima_home}",
     "dockerCompatibility.enabled": true,
     "podman.setting.dockerCompatibility": true
 }
@@ -340,7 +351,8 @@ EOF
   echo "Podman Desktop settings updated:"
   echo "  VM name:      ${vm_name}"
   echo "  Type:         ${lima_type}"
-  echo "  Socket:       ${socket_name}.sock"
+  echo "  Socket:       ${socket_name}"
+  echo "  Home:         ${lima_home}"
   echo
   warn "Restart Podman Desktop for changes to take effect"
 }

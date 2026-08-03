@@ -28,8 +28,8 @@
     "podman.setting.rosetta": false,
     "podman.system.connections.remote": true,
     "lima.type": "docker",
-    "lima.home": "~/.lima",
+    "lima.home": "/Users/you/.lima",
     "lima.binary.path": "/opt/homebrew/bin/limactl",
     "lima.name": "podman",
-    "lima.socket": "podman"
+    "lima.socket": "podman.sock"
 }
